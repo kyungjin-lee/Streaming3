@@ -1,0 +1,6 @@
+StreamingServer/venv
+StreamingServer/h264decoder/build
+StreamingServer/kill_python
+*.so
+*.pyc
+__pycache__
