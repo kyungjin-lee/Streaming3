@@ -5,10 +5,17 @@ import sys
 from rtp import RTP
 import datetime
 from Server import Server
+from TestServer import TestServer
+import argparse
+import torch
+import torch.multiprocessing as mp
 
 MAX_RTP_SEQ_NUM = 65535
 
-def main():
+def run_video(input_folder):
+    TestServer(input_folder).run()
+
+def run_streaming(objDetectorInfo, alphaPoseInfo):
 
     server_addr = ('', 554)
     rtspSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -19,29 +26,19 @@ def main():
     while True:
         clientInfo = {}
         clientInfo['rtspSocket'] = rtspSocket.accept()
-        Server(clientInfo).run()
-#       clientSocket, addr = rtspSocket.accept()
-#       data = clientSocket.recv(2048)
-#       if not data:
-#           print("client does not exist")
-#           break
-#       decoded_frame = rtp_parser.recv_pkt(data)
-       
-#    with conn:
-#        while True:
-#            data = conn.recv(MAX_RTP_PKT_LEN)
-#    
-#            if not data:
-#                print ("client does not exist")
-#                break
-#            decoded_frame = rtp_parser.recv_pkt(data)
-#            if decoded_frame is not None:
-#                print ("start: ", datetime.datetime.now())
-#                img = cv2.cvtColor(decoded_frame, cv2.COLOR_RGB2BGR)
-#                cv2.imshow("preview", img)
-#                key = cv2.waitKey(1)
-#                if key&0xFF == ord('q'):
-#                    break
-#        s.close()
+        Server(clientInfo, objDetectorInfo, alphaPoseInfo).run()
+
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--input_type", type=str, default="video", help="input type either video or streaming")
+    parser.add_argument("--input_folder", type=str, default="data/samples", help="path to dataset")
+
+    opt = parser.parse_args()
+    
+    if opt.input_type == "video":
+        run_video(opt.input_folder)
+    elif opt.input_type == "streaming":
+        run_streaming()
+    else:
+        print("Wrong input type, video or streaming") 
+    

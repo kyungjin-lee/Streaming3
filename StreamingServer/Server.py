@@ -1,7 +1,41 @@
+from __future__ import division
+from ObjectDetector.models import *
+from ObjectDetector.utils.utils import *
+from ObjectDetector.utils.datasets import *
+
+import os 
+import time, datetime
 import sys, threading, socket
-from rtp import RTP
 import struct
 import cv2
+
+import torch
+from torch.utils.data import DataLoader
+from torchvision import datasets
+from torch.autograd import Variable
+
+from rtp import RTP
+from MultiDeep import run_multideep
+def load_objDetectModel(objDetectInfo):
+    #Set up model
+    model = Darknet(objDetectInfo['obj_model_def'], img_size=416).to(device)
+
+    if objDetectInfo['obj_weights_path'].endswith(".weights"):
+        #Load Darknet weights
+        model.load_darknet_weights(objDetectInfo['obj_weights_path'])
+    else:
+        #Load checkpoint weights
+        model.load_state_dict(torch.load(objDetectInfo['obj_weights_path']))
+
+    model.eval()
+
+    obj_classes = load_classes(objDetectInfo['obj_class_path'])
+
+    objDetectModel = {}
+    objDetectModel['model'] = model
+    objDetectModel['obj_class'] = obj_classes
+    return objDetectModel
+
 
 class Server:
     SETUP = 'SETUP'
@@ -20,11 +54,17 @@ class Server:
     clientInfo = {}
    
     
-    def __init__(self, clientInfo):
+    def __init__(self, clientInfo, objDetectInfo):
         self.clientInfo = clientInfo
+        self.objDetectInfo = objDetectInfo
         self.rtp_parser = RTP()
         self.data = b''
         self.data_len = 0
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        
+        self.objDetectModel = load_objDetectModel(self.objDetectInfo)
+    
+      
     def run(self):
 #        threading.Thread(target=self.recvRtspRequest).start()
         self.recvRtspRequest()
@@ -40,28 +80,6 @@ class Server:
 
     def processRtspRequest(self, data):
         """Process RTSP request sent from the client."""
-        #Get the request type
-#        data_str = data.decode()
-
-#        if data_str[0] is not '$':
-#            request = data_str.split('\n')
-#            line1 = request[0].split(' ')
-#            requestType = line1[0]
-#            #Get the media file name
-#            #filename = line1[1]
-#            #Get the RTSP sequence number
-#            seq = request[1].split(' ')
-#    
-#            rtspVersion = line1[1]
-#            cseq = (request[1].split(' '))[1]
-#            if requestType == self.OPTIONS:
-#                self.replyRtsp(self.OK_200, cseq)
-#    
-#            elif requestType == self.ANNOUNCE:
-#                self.replyRtsp(self.OK_200, cseq)
-#    
-#            elif requestType == self.SETUP:
-#                self.replyRtsp(self.OK_200, cseq)
         while True:
             self.data += data
             data = b''
@@ -74,12 +92,14 @@ class Server:
             print("header[0] : ", header[0])
             if header[0] == b'$':
                 exp_len = header[2]
+
                 print("exp_len: ", exp_len)
                 if data_len >= exp_len:
                     video_data = self.data[4:4+exp_len]
                     decoded_frame = self.rtp_parser.recv_pkt(video_data)
                     if decoded_frame is not None:
                         print("==============Frame not none=============")
+                        run_multideep(decoded_frame,self.objDetectModel)
                         img = cv2.cvtColor(decoded_frame, cv2.COLOR_RGB2BGR)
                         cv2.imshow("preview", img)
                         key = cv2.waitKey(1)

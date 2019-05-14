@@ -1,6 +1,6 @@
 from rfc3984 import RFC3984
 from decoder import run_decode
-import libh264decoder
+#import libh264decoder
 import bitstring
 
 PT_H264 = 96

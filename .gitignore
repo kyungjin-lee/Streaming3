@@ -1,6 +1,16 @@
 StreamingServer/venv
 StreamingServer/h264decoder/build
 StreamingServer/kill_python
+StreamingServer/bin
+StreamingServer/data
+StreamingServer/examples
+StreamingServer/ObjectDetector/data/samples
+StreamingServer/ObjectDetector/data/custom
+StreamingServer/ObjectDetector/weights/*.weights
+StreamingServer/ObjectDetector/weights/*.conv.74
+StreamingServer/AlphaPose/models
+StreamingServer/AlphaPose/yolo/cfg/*
+StreamingServer/AlphaPose/yolo/data/*
 *.so
 *.pyc
 __pycache__
