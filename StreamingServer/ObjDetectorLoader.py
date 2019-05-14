@@ -89,11 +89,11 @@ class ObjDetectorLoader:
         t.join()
         return self
 
-    def run(self, frame):
+    def run(self):
         conf_thres = 0.8
         nms_thres = 0.4
         prev_time = time.time()
-        
+        frame = self.inputQ.getitem()
         
         #Configure input
         img_size, img = preprocess_img(frame,self.inputSize)

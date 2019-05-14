@@ -66,8 +66,9 @@ class DetectionLoader:
         # start a thread to read frames from the file video stream
         if self.loaderInfo.sp:
             t = Thread(target=self.update, args=())
-            t.daemon = True
+#            t.daemon = True
             t.start()
+            t.join()
         else:
             p = mp.Process(target=self.update, args=())
             p.daemon = True
@@ -77,56 +78,57 @@ class DetectionLoader:
     def update(self):
         # keep looping the whole dataset
         #for i in range(self.num_batches):
-        while True:
-            if not self.dataloader.Q.empty():
-                img, orig_img, im_name, im_dim_list = self.dataloader.getitem()
-                if img is None:
-                    self.Q.put((None, None, None, None, None, None, None))
-                    return
-                with torch.no_grad():
-                    # Human Detection
-                    img = img.cuda()
-                    prediction = self.det_model(img, CUDA=True)
-                    # NMS process
-                    print("conf, num_class, nps, nps_conf: ", self.loaderInfo.confidence, self.loaderInfo.num_classes, self.loaderInfo.nms_thesh)
-        
-                    dets = dynamic_write_results(prediction, self.loaderInfo.confidence,
-                                        self.loaderInfo.num_classes, nms=True, nms_conf=self.loaderInfo.nms_thesh)
-                    if isinstance(dets, int) or dets.shape[0] == 0:
-                        for k in range(len(orig_img)):
-                            if self.Q.full():
-                                time.sleep(2)
-                            self.Q.put((orig_img[k], im_name[k], None, None, None, None, None))
-                        continue
-                    dets = dets.cpu()
-                    im_dim_list = torch.index_select(im_dim_list,0, dets[:, 0].long())
-                    scaling_factor = torch.min(self.det_inp_dim / im_dim_list, 1)[0].view(-1, 1)
-                    # coordinate transfer
-                    dets[:, [1, 3]] -= (self.det_inp_dim - scaling_factor * im_dim_list[:, 0].view(-1, 1)) / 2
-                    dets[:, [2, 4]] -= (self.det_inp_dim - scaling_factor * im_dim_list[:, 1].view(-1, 1)) / 2
-                    dets[:, 1:5] /= scaling_factor
-                    for j in range(dets.shape[0]):
-                        dets[j, [1, 3]] = torch.clamp(dets[j, [1, 3]], 0.0, im_dim_list[j, 0])
-                        dets[j, [2, 4]] = torch.clamp(dets[j, [2, 4]], 0.0, im_dim_list[j, 1])
-                    boxes = dets[:, 1:5]
-                    scores = dets[:, 5:6]
-                    # print("equal? ", torch.all(torch.eq(boxes, tmpboxes)))
-                    # print("equal scores? ", torch.all(torch.eq(scores, tmpscores)))
-                for k in [0]:
-                    boxes_k = boxes[dets[:,0]==k]
-                    if isinstance(boxes_k, int) or boxes_k.shape[0] == 0:
+        if not self.dataloader.Q.empty():
+            img, orig_img, im_name, im_dim_list = self.dataloader.getitem()
+            if img is None:
+                self.Q.put((None, None, None, None, None, None, None))
+                return
+            with torch.no_grad():
+                # Human Detection
+                img = img.cuda()
+                prediction = self.det_model(img, CUDA=True)
+                # NMS process
+                print("conf, num_class, nps, nps_conf: ", self.loaderInfo.confidence, self.loaderInfo.num_classes, self.loaderInfo.nms_thesh)
+    
+                dets = dynamic_write_results(prediction, self.loaderInfo.confidence,
+                                    self.loaderInfo.num_classes, nms=True, nms_conf=self.loaderInfo.nms_thesh)
+                if isinstance(dets, int) or dets.shape[0] == 0:
+                    for k in range(len(orig_img)):
                         if self.Q.full():
                             time.sleep(2)
                         self.Q.put((orig_img[k], im_name[k], None, None, None, None, None))
-                        continue
-                    inps = torch.zeros(boxes_k.size(0), 3, self.loaderInfo.inputResH, self.loaderInfo.inputResW)
-                    pt1 = torch.zeros(boxes_k.size(0), 2)
-                    pt2 = torch.zeros(boxes_k.size(0), 2)
+                    return
+                dets = dets.cpu()
+                im_dim_list = torch.index_select(im_dim_list,0, dets[:, 0].long())
+                scaling_factor = torch.min(self.det_inp_dim / im_dim_list, 1)[0].view(-1, 1)
+                # coordinate transfer
+                dets[:, [1, 3]] -= (self.det_inp_dim - scaling_factor * im_dim_list[:, 0].view(-1, 1)) / 2
+                dets[:, [2, 4]] -= (self.det_inp_dim - scaling_factor * im_dim_list[:, 1].view(-1, 1)) / 2
+                dets[:, 1:5] /= scaling_factor
+                for j in range(dets.shape[0]):
+                    dets[j, [1, 3]] = torch.clamp(dets[j, [1, 3]], 0.0, im_dim_list[j, 0])
+                    dets[j, [2, 4]] = torch.clamp(dets[j, [2, 4]], 0.0, im_dim_list[j, 1])
+                boxes = dets[:, 1:5]
+                scores = dets[:, 5:6]
+                print("boxes")
+                # print("equal? ", torch.all(torch.eq(boxes, tmpboxes)))
+                # print("equal scores? ", torch.all(torch.eq(scores, tmpscores)))
+            for k in [0]:
+                boxes_k = boxes[dets[:,0]==k]
+                if isinstance(boxes_k, int) or boxes_k.shape[0] == 0:
                     if self.Q.full():
                         time.sleep(2)
-                    self.Q.put((orig_img[k], im_name[k], boxes_k, scores[dets[:,0]==k], inps, pt1, pt2))
-            else:
-                time.sleep(0.1)
+                    self.Q.put((orig_img[k], im_name[k], None, None, None, None, None))
+                    continue
+                inps = torch.zeros(boxes_k.size(0), 3, self.loaderInfo.inputResH, self.loaderInfo.inputResW)
+                pt1 = torch.zeros(boxes_k.size(0), 2)
+                pt2 = torch.zeros(boxes_k.size(0), 2)
+                if self.Q.full():
+                    time.sleep(2)
+                self.Q.put((orig_img[k], im_name[k], boxes_k, scores[dets[:,0]==k], inps, pt1, pt2))
+                print("write detection in queue")
+#        else:
+#            time.sleep(0.1)
     def read(self):
         # return next frame in the queue
         return self.Q.get()
@@ -153,10 +155,12 @@ class DetectionProcessor:
 
     def start(self):
         # start a thread to read frames from the file video stream
+        print("start detection processor")
         if self.loaderInfo.sp:
             t = Thread(target=self.update, args=())
             t.daemon = True
             t.start()
+#            t.join()
         else:
             p = mp.Process(target=self.update, args=())
             p.daemon = True
@@ -167,6 +171,7 @@ class DetectionProcessor:
         # keep looping the whole dataset
         while True:
             if not self.detectionLoader.Q.empty(): 
+                print("processor not empty")
                 with torch.no_grad():
                     (orig_img, im_name, boxes, scores, inps, pt1, pt2) = self.detectionLoader.read()
                     if orig_img is None:
@@ -176,14 +181,15 @@ class DetectionProcessor:
                         while self.Q.full():
                             time.sleep(0.2)
                         self.Q.put((None, orig_img, im_name, boxes, scores, None, None))
-                        continue
+                        return
                     inp = im_to_torch(cv2.cvtColor(orig_img, cv2.COLOR_BGR2RGB))
                     inps, pt1, pt2 = crop_from_dets(self.loaderInfo,inp, boxes, inps, pt1, pt2)
                     while self.Q.full():
                         time.sleep(0.2)
                     self.Q.put((inps, orig_img, im_name, boxes, scores, pt1, pt2))
-        else: 
-            time.sleep(0.1) 
+                break
+    #        else: 
+    #            time.sleep(0.1) 
     def read(self):
         # return next frame in the queue
         return self.Q.get()

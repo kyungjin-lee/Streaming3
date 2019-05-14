@@ -10,15 +10,15 @@ import cv2
 
 class PriorityQueue:
     def __init__(self, queueSize = 1024):
-#        self.Q = mp.Queue(maxsize = queueSize)
-        self.Q = Queue(maxsize = queueSize)
+        self.Q = mp.Queue(maxsize = queueSize)
+#        self.Q = Queue(maxsize = queueSize)
     def start(self, video_path):
-        t = Thread(target=self.readframe, args=[video_path])
-        t.daemon = True
-        t.start()
-#        p = mp.Process(target=self.readframe, args=[video_path])
-#        p.daemon = True
-#        p.start()
+#        t = Thread(target=self.readframe, args=[video_path])
+#        t.daemon = True
+#        t.start()
+        p = mp.Process(target=self.readframe, args=[video_path])
+        p.daemon = True
+        p.start()
         return self
 
     def readframe(self, video_path):

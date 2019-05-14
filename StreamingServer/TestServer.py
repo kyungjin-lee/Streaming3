@@ -50,13 +50,17 @@ class TestServer:
  #       self.alphaPoseProcessor.start()
     def feedDnn(self):
         frame = self.PriorityQueue.getitem()
-#        self.objDetector.inputQ.push(frame)
+        self.objDetector.inputQ.push(frame)
         self.alphaPose.inputQ.push(frame)
 #        self.objDetector.inputQ.push(frame)
-        self.objDetector.run(frame)
-        self.alphaPose.run()
+        self.objDetector.run()
+        self.alphaPose.start()
 #        self.alphaPoseQ.push(frame)
-        
+        frame = self.PriorityQueue.getitem()
+        self.objDetector.inputQ.push(frame)
+        self.objDetector.run()
+        self.alphaPose.inputQ.push(frame)
+        self.alphaPose.start()        
 #run_multideep(self.PriorityQueue, self.objDetectorModel, self.alphaPoseModel)
 
 
