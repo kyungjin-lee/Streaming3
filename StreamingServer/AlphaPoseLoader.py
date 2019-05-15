@@ -14,12 +14,13 @@ import torch.utils.data
 import numpy as np
 from AlphaPose.dataloader import DetectionLoader, DetectionProcessor, Mscoco
 from AlphaPose.SPPE.src.main_fast_inference import *
+from AlphaPose.SPPE.src.utils.eval import *
 
 import ntpath
 import os
 import sys
 import time
-from AlphaPose.fn import getTime
+from AlphaPose.fn import getTime,vis_frame
 import cv2
 from AlphaPose.pPose_nms import pose_nms
 
@@ -80,6 +81,7 @@ class AlphaPoseLoader:
         self.pose_model.eval()
 
         self.outputQ = Queue(maxsize=queueSize)
+        self.startTime = time.time()
     def start(self):
 #        p = mp.Process(target=self.run, args=())
 #        p.daemon = True
@@ -90,8 +92,8 @@ class AlphaPoseLoader:
         return self
 
     def run(self):
-        self.det_loader.start()
-        self.det_processor.start()
+        det_results = self.det_loader.update()
+        self.det_processor.update(det_results)
         runtime_profile = {
             'dt': [],
             'pt': [],
@@ -99,17 +101,16 @@ class AlphaPoseLoader:
         }
         start_time = getTime()
         with torch.no_grad():
+            startTime = time.time()
             (inps, orig_img, im_name, boxes, scores, pt1, pt2) = self.det_processor.read()
-            print("read")
             if orig_img is None:
                 return
-
             ckpt_time, det_time = getTime(start_time)
-            print("det_time : ", det_time)
             runtime_profile['dt'].append(det_time)
             datalen = inps.size(0)
             batchSize = 1
             num_batches = datalen//batchSize
+            
             hm = []
             for j in range(num_batches):
                 inps_j = inps[j*batchSize:min((j+1)*batchSize, datalen)].cuda()
@@ -118,9 +119,20 @@ class AlphaPoseLoader:
             hm = torch.cat(hm)
             ckpt_time, pose_time = getTime(ckpt_time)
             runtime_profile['pt'].append(pose_time)
-            print("poseTime: ", pose_time) 
             hm = hm.cpu().data
             ckpt_time, post_time = getTime(ckpt_time)
             runtime_profile['pn'].append(post_time)
             self.outputQ.put((boxes, scores, hm, pt1, pt2))
+            preds_hm, preds_img, preds_scores = getPrediction(hm, pt1, pt2, 320, 256, 80, 64)
+            result = pose_nms(boxes, scores, preds_img, preds_scores)
+  
+            result = {
+                'imgname': 1,
+                'result': result
+            }
+            finalimg = vis_frame(orig_img, result)
+            cv2.imwrite("finalresult.png", finalimg)
+            endTime = time.time()
+            print("AlphaPose time : ", endTime-startTime)
+            self.startTime = endTime
 

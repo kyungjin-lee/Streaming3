@@ -48,7 +48,6 @@ def pose_nms(bboxes, bbox_scores, pose_preds, pose_scores):
 
     nsamples = bboxes.shape[0]
     human_scores = pose_scores.mean(dim=1)
-
     human_ids = np.arange(nsamples)
     # Do pPose-NMS
     pick = []

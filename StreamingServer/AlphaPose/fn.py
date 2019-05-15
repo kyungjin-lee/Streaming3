@@ -174,7 +174,8 @@ def vis_frame(frame, im_res, format='coco'):
     else:
         raise NotImplementedError
 
-    im_name = im_res['imgname'].split('/')[-1]
+    #im_name = im_res['imgname'].split('/')[-1]
+    im_name = im_res['imgname']
     img = frame
     height,width = img.shape[:2]
     img = cv2.resize(img,(int(width/2), int(height/2)))

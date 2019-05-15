@@ -21,7 +21,7 @@ from MultiDeep import run_multideep
 from threading import Thread
 from queue import Queue
 
-from multideepQ import PriorityQueue
+from multideepQ import PriorityQueue, VideoStreamQueue
 
 from AlphaPoseLoader import *
 from threading import Thread
@@ -30,6 +30,7 @@ class TestServer:
     
     def __init__(self, input_folder):
         self.input_folder = input_folder
+        self.VideoStreamQueue = VideoStreamQueue()
         self.PriorityQueue = PriorityQueue()
       
 #        self.objDetectorQ = ObjDetectorQ()
@@ -38,7 +39,8 @@ class TestServer:
         self.alphaPose = AlphaPoseLoader()
       
     def run(self):
-        self.PriorityQueue.start(self.input_folder)
+        self.VideoStreamQueue.start(self.input_folder)
+        self.PriorityQueue.start(self.VideoStreamQueue)
         self.feedDnn()
 #        p = mp.Process(target=self.feedDnn, args=())
 #        p.daemon=True
@@ -49,18 +51,22 @@ class TestServer:
  #       self.objDetectorProcessor.start()
  #       self.alphaPoseProcessor.start()
     def feedDnn(self):
-        frame = self.PriorityQueue.getitem()
-        self.objDetector.inputQ.push(frame)
-        self.alphaPose.inputQ.push(frame)
-#        self.objDetector.inputQ.push(frame)
-        self.objDetector.run()
-        self.alphaPose.start()
-#        self.alphaPoseQ.push(frame)
-        frame = self.PriorityQueue.getitem()
-        self.objDetector.inputQ.push(frame)
-        self.objDetector.run()
-        self.alphaPose.inputQ.push(frame)
-        self.alphaPose.start()        
+        obj_prev = time.time()
+        alpha_prev = time.time()
+        while True:
+            mId, frame = self.PriorityQueue.getitem()
+            if mId ==0:
+                obj_cur = time.time()
+                self.objDetector.inputQ.push(frame)
+                self.objDetector.run()
+                print("ObjDetector: ", obj_cur - obj_prev)
+                obj_prev = obj_cur
+            else:
+                alpha_cur = time.time()
+                self.alphaPose.inputQ.push(frame)
+                self.alphaPose.run()
+                print("AlphaPose: ", alpha_cur - alpha_prev)
+                alpha_prev = alpha_cur
 #run_multideep(self.PriorityQueue, self.objDetectorModel, self.alphaPoseModel)
 
 

@@ -11,7 +11,7 @@ from copy import deepcopy
 import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as plt
-
+import time
 
 def im_to_torch(img):
     img = np.transpose(img, (2, 0, 1))  # C*H*W
@@ -243,6 +243,7 @@ def transformBoxInvert_batch(pt, ul, br, inpH, inpW, resH, resW):
 
 
 def cropBox(img, ul, br, resH, resW):
+    starttime = time.time()
     ul = ul.int()
     br = (br - 1).int()
     # br = br.int()
@@ -275,10 +276,12 @@ def cropBox(img, ul, br, resH, resW):
 
     src[2:, :] = get_3rd_point(src[0, :], src[1, :])
     dst[2:, :] = get_3rd_point(dst[0, :], dst[1, :])
-
+    time1 = time.time()
     trans = cv2.getAffineTransform(np.float32(src), np.float32(dst))
+    startime = time.time()
     dst_img = cv2.warpAffine(torch_to_im(img), trans,
                              (resW, resH), flags=cv2.INTER_LINEAR)
+    #dst_img = cv2.resize(torch_to_im(img),(resW,resH), interpolation=cv2.INTER_CUBIC)
     return im_to_torch(torch.Tensor(dst_img))
 
 

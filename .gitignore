@@ -11,6 +11,7 @@ StreamingServer/ObjectDetector/weights/*.conv.74
 StreamingServer/AlphaPose/models
 StreamingServer/AlphaPose/yolo/cfg/*
 StreamingServer/AlphaPose/yolo/data/*
+*.png
 *.so
 *.pyc
 __pycache__

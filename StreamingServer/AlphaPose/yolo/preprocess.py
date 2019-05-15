@@ -42,7 +42,6 @@ def prep_image(img, inp_dim):
     img = (letterbox_image(orig_im, (inp_dim, inp_dim)))
     img_ = img[:, :, ::-1].transpose((2, 0, 1)).copy()
     img_ = torch.from_numpy(img_).float().div(255.0).unsqueeze(0)
-    print("dim: ", dim)
     return img_, orig_im, dim
 
 
@@ -58,7 +57,6 @@ def prep_frame(img, inp_dim):
     img_ = img[:, :, ::-1].transpose((2, 0, 1)).copy()
     
     img_ = torch.from_numpy(img_).float().div(255.0).unsqueeze(0)
-    print("dim: ", dim)
     return img_, orig_im, dim
 
 

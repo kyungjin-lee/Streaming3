@@ -55,6 +55,7 @@ class DetectionLoader:
         if (self.datalen) % batchSize:
             leftover = 1
         self.num_batches = self.datalen // batchSize + leftover
+        self.num_human = 1
         # initialize the queue used to store frames read from
         # the video file
         if self.loaderInfo.sp:
@@ -110,11 +111,13 @@ class DetectionLoader:
                     dets[j, [2, 4]] = torch.clamp(dets[j, [2, 4]], 0.0, im_dim_list[j, 1])
                 boxes = dets[:, 1:5]
                 scores = dets[:, 5:6]
-                print("boxes")
+                
+                
                 # print("equal? ", torch.all(torch.eq(boxes, tmpboxes)))
                 # print("equal scores? ", torch.all(torch.eq(scores, tmpscores)))
             for k in [0]:
                 boxes_k = boxes[dets[:,0]==k]
+                boxes_k = boxes_k[0:self.num_human,:]
                 if isinstance(boxes_k, int) or boxes_k.shape[0] == 0:
                     if self.Q.full():
                         time.sleep(2)
@@ -125,8 +128,9 @@ class DetectionLoader:
                 pt2 = torch.zeros(boxes_k.size(0), 2)
                 if self.Q.full():
                     time.sleep(2)
+                results = (orig_img[k], im_name[k],boxes_k, scores[dets[:,0]==k],inps, pt1, pt2)
                 self.Q.put((orig_img[k], im_name[k], boxes_k, scores[dets[:,0]==k], inps, pt1, pt2))
-                print("write detection in queue")
+            return results
 #        else:
 #            time.sleep(0.1)
     def read(self):
@@ -155,7 +159,6 @@ class DetectionProcessor:
 
     def start(self):
         # start a thread to read frames from the file video stream
-        print("start detection processor")
         if self.loaderInfo.sp:
             t = Thread(target=self.update, args=())
             t.daemon = True
@@ -167,27 +170,27 @@ class DetectionProcessor:
             p.start()
         return self
 
-    def update(self):
+    def update(self,results):
         # keep looping the whole dataset
-        while True:
-            if not self.detectionLoader.Q.empty(): 
-                print("processor not empty")
-                with torch.no_grad():
-                    (orig_img, im_name, boxes, scores, inps, pt1, pt2) = self.detectionLoader.read()
-                    if orig_img is None:
-                        self.Q.put((None, None, None, None, None, None, None))
-                        return
-                    if boxes is None or boxes.nelement() == 0:
-                        while self.Q.full():
-                            time.sleep(0.2)
-                        self.Q.put((None, orig_img, im_name, boxes, scores, None, None))
-                        return
-                    inp = im_to_torch(cv2.cvtColor(orig_img, cv2.COLOR_BGR2RGB))
-                    inps, pt1, pt2 = crop_from_dets(self.loaderInfo,inp, boxes, inps, pt1, pt2)
+#        while True:
+        if not self.detectionLoader.Q.empty(): 
+            with torch.no_grad():
+#                (orig_img, im_name, boxes, scores, inps, pt1, pt2) = self.detectionLoader.read()
+                (orig_img, im_name, boxes, scores, inps, pt1, pt2) = results
+                if orig_img is None:
+                    self.Q.put((None, None, None, None, None, None, None))
+                    return
+                if boxes is None or boxes.nelement() == 0:
                     while self.Q.full():
                         time.sleep(0.2)
-                    self.Q.put((inps, orig_img, im_name, boxes, scores, pt1, pt2))
-                break
+                    self.Q.put((None, orig_img, im_name, boxes, scores, None, None))
+                    return
+                inp = im_to_torch(cv2.cvtColor(orig_img, cv2.COLOR_BGR2RGB))
+                inps, pt1, pt2 = crop_from_dets(self.loaderInfo,inp, boxes, inps, pt1, pt2)
+                while self.Q.full():
+                    time.sleep(0.2)
+                self.Q.put((inps, orig_img, im_name, boxes, scores, pt1, pt2))
+#            break
     #        else: 
     #            time.sleep(0.1) 
     def read(self):
@@ -482,6 +485,7 @@ def crop_from_dets(loaderInfo,img, boxes, inps, pt1, pt2):
         bottomRight[1] = max(
             min(imght - 1, bottomRight[1] + ht * scaleRate / 2), upLeft[1] + 5)
         try:
+            startTime = time.time()
             inps[i] = cropBox(tmp_img.clone(), upLeft, bottomRight, loaderInfo.inputResH, loaderInfo.inputResW)
         except IndexError:
             print(tmp_img.shape)

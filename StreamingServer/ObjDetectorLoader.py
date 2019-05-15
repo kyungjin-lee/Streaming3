@@ -50,9 +50,7 @@ class ObjDetectorQ:
         self.Q = Queue(maxsize = queueSize)
     def push(self, item):
         self.Q.put(item)
-        print("push item")
     def getitem(self):
-        print("qsize: ", self.Q.qsize())
         return self.Q.get()
     def length(self):
         return self.Q.qsize()
@@ -105,7 +103,8 @@ class ObjDetectorLoader:
             detections = non_max_suppression(detections, conf_thres, nms_thres)
         
         current_time = time.time()
-        inference_time = datetime.timedelta(seconds=current_time - prev_time)
+        #inference_time = datetime.timedelta(seconds=current_time - prev_time)
+        inference_time = current_time-prev_time
         print("\t Inference Time: %s" %(inference_time))
         prev_time = current_time
 
