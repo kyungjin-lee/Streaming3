@@ -89,7 +89,7 @@ class DetectionLoader:
                 img = img.cuda()
                 prediction = self.det_model(img, CUDA=True)
                 # NMS process
-                print("conf, num_class, nps, nps_conf: ", self.loaderInfo.confidence, self.loaderInfo.num_classes, self.loaderInfo.nms_thesh)
+#                print("conf, num_class, nps, nps_conf: ", self.loaderInfo.confidence, self.loaderInfo.num_classes, self.loaderInfo.nms_thesh)
     
                 dets = dynamic_write_results(prediction, self.loaderInfo.confidence,
                                     self.loaderInfo.num_classes, nms=True, nms_conf=self.loaderInfo.nms_thesh)

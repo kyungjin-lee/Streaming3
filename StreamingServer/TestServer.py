@@ -16,7 +16,6 @@ from torchvision import datasets
 from torch.autograd import Variable
 
 from rtp import RTP
-from MultiDeep import run_multideep
 
 from threading import Thread
 from queue import Queue
@@ -41,7 +40,7 @@ class TestServer:
     def run(self):
         self.VideoStreamQueue.start(self.input_folder)
         self.PriorityQueue.start(self.VideoStreamQueue)
-        self.feedDnn()
+        self.roundrobin()
 #        p = mp.Process(target=self.feedDnn, args=())
 #        p.daemon=True
 #        p.start() 
@@ -50,38 +49,26 @@ class TestServer:
         #t.start()  
  #       self.objDetectorProcessor.start()
  #       self.alphaPoseProcessor.start()
-    def feedDnn(self):
+    def roundrobin(self):
         obj_prev = time.time()
         alpha_prev = time.time()
         while True:
+            q_time = time.time()
             mId, frame = self.PriorityQueue.getitem()
             if mId ==0:
                 obj_cur = time.time()
                 self.objDetector.inputQ.push(frame)
                 self.objDetector.run()
-                print("ObjDetector: ", obj_cur - obj_prev)
+                print("1. ObjDetector: ", obj_cur - obj_prev)
                 obj_prev = obj_cur
             else:
                 alpha_cur = time.time()
                 self.alphaPose.inputQ.push(frame)
+                alpha_run_time = time.time()
                 self.alphaPose.run()
-                print("AlphaPose: ", alpha_cur - alpha_prev)
+                print("2. AlphaPose: ", alpha_cur - alpha_prev)
                 alpha_prev = alpha_cur
-#run_multideep(self.PriorityQueue, self.objDetectorModel, self.alphaPoseModel)
+            print("Run time: ", time.time()-q_time)
 
 
 
-
-#         path = self.input_folder
-#         onlyfiles = [f for f in listdir(path) if isfile(join(path,f))]
-#         for n in range(0, len(onlyfiles)):
-#             print("Image name: ", join(path,onlyfiles[n]))
-#             frame = cv2.imread(join(path,onlyfiles[n]))
-#             run_multideep(frame, self.objDetectorModel)
-##        threading.Thread(target=self.recvRtspRequest).start()
-#        cap = cv2.VideoCapture(self.input_folder)
-#        assert cap.isOpened(), 'Cannot capture source. Cannot find video file'
-#        while cap.isOpened():
-#            ret, frame = cap.read()
-#            if ret:
-#                run_multideep(frame,self.objDetectModel)

@@ -105,7 +105,7 @@ class ObjDetectorLoader:
         current_time = time.time()
         #inference_time = datetime.timedelta(seconds=current_time - prev_time)
         inference_time = current_time-prev_time
-        print("\t Inference Time: %s" %(inference_time))
+        print("\tObject Detector Inference Time: %s" %(inference_time))
         prev_time = current_time
 
         detections = detections[0]

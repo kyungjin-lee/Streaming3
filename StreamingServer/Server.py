@@ -15,7 +15,6 @@ from torchvision import datasets
 from torch.autograd import Variable
 
 from rtp import RTP
-from MultiDeep import run_multideep
 def load_objDetectModel(objDetectInfo):
     #Set up model
     model = Darknet(objDetectInfo['obj_model_def'], img_size=416).to(device)

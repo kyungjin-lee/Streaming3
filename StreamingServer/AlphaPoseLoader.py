@@ -92,6 +92,7 @@ class AlphaPoseLoader:
         return self
 
     def run(self):
+        startTime = time.time()
         det_results = self.det_loader.update()
         self.det_processor.update(det_results)
         runtime_profile = {
@@ -101,7 +102,6 @@ class AlphaPoseLoader:
         }
         start_time = getTime()
         with torch.no_grad():
-            startTime = time.time()
             (inps, orig_img, im_name, boxes, scores, pt1, pt2) = self.det_processor.read()
             if orig_img is None:
                 return
@@ -125,14 +125,13 @@ class AlphaPoseLoader:
             self.outputQ.put((boxes, scores, hm, pt1, pt2))
             preds_hm, preds_img, preds_scores = getPrediction(hm, pt1, pt2, 320, 256, 80, 64)
             result = pose_nms(boxes, scores, preds_img, preds_scores)
-  
             result = {
                 'imgname': 1,
                 'result': result
             }
-            finalimg = vis_frame(orig_img, result)
-            cv2.imwrite("finalresult.png", finalimg)
+            #finalimg = vis_frame(orig_img, result)
+            #cv2.imwrite("finalresult.png", finalimg)
             endTime = time.time()
-            print("AlphaPose time : ", endTime-startTime)
+            print("\tAlphaPose Inference Time : ", endTime-startTime)
             self.startTime = endTime
 
